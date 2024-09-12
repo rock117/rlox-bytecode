@@ -1,6 +1,7 @@
 pub mod chunk;
 mod debug;
 pub mod memory;
+mod value;
 
 use chunk::*;
 use debug::*;
@@ -10,5 +11,5 @@ fn main() {
     init_chunk(&mut chunk);
     write_chunk(&mut chunk, OpCode::OP_RETURN as u8);
     disassemble_chunk(&chunk, "test chunk");
-    free_chunk(&mut chunk);
+    free_chunk(&mut chunk as *mut Chunk);
 }
