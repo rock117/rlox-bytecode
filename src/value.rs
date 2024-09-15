@@ -52,3 +52,8 @@ pub fn free_value_array(array: *mut ValueArray) {
         init_value_array(array);
     }
 }
+
+
+pub fn print_value(value: Value ) {
+    print!("{}", value); // in c: printf("%g", value);
+}
