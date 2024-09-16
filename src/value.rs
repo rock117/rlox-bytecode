@@ -1,6 +1,7 @@
 pub type Value = f64;
 
 /// The constant pool is an array of values.
+#[derive(Debug, Clone)]
 pub struct ValueArray {
     pub values: Vec<Value>
 }

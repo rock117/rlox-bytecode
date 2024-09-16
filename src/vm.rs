@@ -37,7 +37,6 @@ impl VM {
 
     fn run(&mut self) -> InterpretResult {
         loop {
-            println!("qqqqqq");
             print!("          ");
             for slot in &self.stack[0 ..  self.stack_top ] {
                 print!("[ ");
@@ -48,7 +47,6 @@ impl VM {
             disassemble_instruction(&self.chunk, self.ip_index);
             let instruction = self.read_byte();
 
-            println!("instruction is: {:?}", OpCode::try_from(instruction));
             match OpCode::try_from(instruction) {
                 Ok(instruction) => {
                     match instruction {
@@ -57,6 +55,10 @@ impl VM {
                             self.push(constant);
                             print!("\n");
                         }
+                        OpCode::OP_ADD => self.binary_op("+"),
+                        OpCode::OP_SUBTRACT => self.binary_op("-"),
+                        OpCode::OP_MULTIPLY => self.binary_op("*"),
+                        OpCode::OP_DIVIDE => self.binary_op("/"),
                         OpCode::OP_NEGATE => {
                             let value = -self.pop();
                             self.push(value);
@@ -83,6 +85,24 @@ impl VM {
         let index = self.read_byte() as usize;
         self.chunk.constants.values[index]
     }
+
+    fn binary_op(&mut self, op: &str){
+        let b = self.pop();
+        let a = self.pop();
+        match op {
+            "+" => self.push(a + b),
+            "-" => self.push(a - b),
+            "*" => self.push(a * b),
+            "/" => self.push(a / b),
+            _ => {}
+        }
+    }
+    // #define BINARY_OP(op) \
+    // do { \
+    // double b = pop(); \
+    // double a = pop(); \
+    // push(a op b); \
+    // } while (false)
 
     fn reset_stack(&mut self) {
         self.stack_top = 0;

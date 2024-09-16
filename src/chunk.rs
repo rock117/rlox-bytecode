@@ -1,14 +1,22 @@
+use int_enum::IntEnum;
 use crate::chunk::OpCode::{OP_CONSTANT, OP_NEGATE, OP_RETURN};
 use crate::value::{Value, ValueArray};
 
-#[derive(Debug, Copy, Clone)]
+use int_to_c_enum::TryFromInt;
+#[repr(u8)]
+#[derive(TryFromInt, Debug)]
 pub enum OpCode {
     OP_CONSTANT = 0,
-    OP_NEGATE,
-    OP_RETURN,
+    OP_ADD = 1,
+    OP_SUBTRACT = 2,
+    OP_MULTIPLY = 3,
+    OP_DIVIDE = 4,
+    OP_NEGATE = 5,
+    OP_RETURN = 6,
 }
 
 /// vm instruction, store all instructions
+#[derive(Debug, Clone)]
 pub struct Chunk {
     /// store instructions and operands
     pub codes: Vec<u8>,
@@ -34,18 +42,5 @@ impl Chunk {
     pub fn add_constant(&mut self, value: Value) -> usize {
         self.constants.write_value_array(value);
         self.constants.count() - 1
-    }
-}
-
-impl TryFrom<u8> for OpCode {
-    type Error = String;
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            0 => Ok(OP_CONSTANT),
-            1 => Ok(OP_NEGATE),
-            2 => Ok(OP_RETURN),
-            _ => Err(format!("not legal op code: {}", value)),
-        }
     }
 }
