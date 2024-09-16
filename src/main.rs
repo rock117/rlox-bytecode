@@ -1,21 +1,24 @@
 pub mod chunk;
 mod debug;
-pub mod memory;
 mod value;
+mod vm;
 
 use chunk::*;
 use debug::*;
 use value::*;
-use crate::chunk::OpCode::{OP_CONSTANT, OP_RETURN};
+use crate::chunk::OpCode::{OP_CONSTANT, OP_NEGATE, OP_RETURN};
+use crate::vm::VM;
 
 fn main() {
     let mut chunk = Chunk::new();
-    init_chunk(&mut chunk);
-    let constant = add_constant(&mut chunk, 1.2);
-    write_chunk(&mut chunk, OP_CONSTANT as u8, 123);
-    write_chunk(&mut chunk, constant as u8, 123);
 
-    write_chunk(&mut chunk, OP_RETURN as u8, 123);
-    disassemble_chunk(&mut chunk, "test chunk");
-    free_chunk(&mut chunk as *mut Chunk);
+    let constant = chunk.add_constant(1.2);
+    chunk.write_chunk(OP_CONSTANT as u8, 123);
+    chunk.write_chunk(constant  as u8, 123);
+    chunk.write_chunk(OP_NEGATE  as u8, 123);
+    chunk.write_chunk(OP_RETURN as u8, 123);
+
+    let mut vm = VM::new(chunk);
+    vm.interpret();
+  //  disassemble_chunk(&mut chunk, "test chunk");
 }
