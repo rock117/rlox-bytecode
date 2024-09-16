@@ -2,35 +2,58 @@ pub mod chunk;
 mod debug;
 mod value;
 mod vm;
+mod compiler;
+mod scanner;
 
+use std::cmp::PartialEq;
+use std::sync::atomic::Ordering;
 use chunk::*;
 use debug::*;
 use value::*;
 use crate::chunk::OpCode::{OP_ADD, OP_CONSTANT, OP_DIVIDE, OP_NEGATE, OP_RETURN};
+use crate::vm::InterpretResult::{INTERPRET_COMPILE_ERROR, INTERPRET_RUNTIME_ERROR};
 use crate::vm::VM;
 
 fn main() {
-    let mut chunk = Chunk::new();
+    let argc = std::env::args().into_iter().collect::<Vec<String>>();
+    let mut vm:VM = todo!();
+    if argc.len() == 1 {
+        repl(&mut vm);
+    } else if argc.len() == 2 {
+        run_file(&mut vm, &argc[1]);
+    } else {
+        eprint!("Usage: clox [path]\n");
+        std::process::exit(64);
+    }
+}
 
-    let mut constant = chunk.add_constant(1.2);
-    chunk.write_chunk(OP_CONSTANT as u8, 123);
-    chunk.write_chunk(constant  as u8, 123);
+fn repl(vm: &mut VM) {
+    loop {
+        print!("> ");
+        let mut line = String::new();
+        match std::io::stdin().read_line(&mut line) {
+            Ok(0) => return,
+            Ok(n) => {
+                vm.interpret(&line);
+            }
+            Err(e) => return,
+        }
+    }
+}
 
-    constant = chunk.add_constant(3.4);
-    chunk.write_chunk(OP_CONSTANT as u8, 123);
-    chunk.write_chunk(constant as u8, 123);
 
-    chunk.write_chunk(OP_ADD as u8, 123);
+fn run_file(vm: &mut VM, path: &str) {
+    let source = std::fs::read_to_string(path).unwrap();
+    let result = vm.interpret(&source);
 
-    constant = chunk.add_constant(5.6);
-    chunk.write_chunk(OP_CONSTANT as u8, 123);
-    chunk.write_chunk(constant as u8, 123);
+    if result == INTERPRET_COMPILE_ERROR {
+        exit(65);
+    }
+    if result == INTERPRET_RUNTIME_ERROR {
+        exit(70);
+    }
+}
 
-    chunk.write_chunk(OP_DIVIDE as u8, 123);
-
-    chunk.write_chunk(OP_NEGATE  as u8, 123);
-    chunk.write_chunk(OP_RETURN as u8, 123);
-
-    disassemble_chunk(&mut chunk, "test chunk");
-    VM::new(chunk).interpret();
+fn exit(code: i32) {
+    std::process::exit(code);
 }

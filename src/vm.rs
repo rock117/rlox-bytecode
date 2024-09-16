@@ -12,13 +12,23 @@ pub struct VM {
     stack: [Value; STACK_MAX],
     stack_top: usize,
 }
-
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum InterpretResult {
     INTERPRET_OK,
     INTERPRET_COMPILE_ERROR,
     INTERPRET_RUNTIME_ERROR,
 }
 
+
+macro_rules! BINARY_OP {
+    ($op:tt, $self:expr) => {
+        {
+            let b = $self.pop();
+            let a = $self.pop();
+            $self.push(a $op b);
+        }
+    };
+}
 impl VM {
     pub fn new(chunk: Chunk) -> Self {
         Self {
@@ -31,14 +41,14 @@ impl VM {
     fn ip(&self) -> u8 {
         self.chunk.codes[self.ip_index]
     }
-    pub fn interpret(&mut self) -> InterpretResult {
+    pub fn interpret(&mut self, source: &str) -> InterpretResult {
         self.run()
     }
 
     fn run(&mut self) -> InterpretResult {
         loop {
             print!("          ");
-            for slot in &self.stack[0 ..  self.stack_top ] {
+            for slot in &self.stack[0..self.stack_top] {
                 print!("[ ");
                 print_value(*slot);
                 print!(" ]");
@@ -55,10 +65,10 @@ impl VM {
                             self.push(constant);
                             print!("\n");
                         }
-                        OpCode::OP_ADD => self.binary_op("+"),
-                        OpCode::OP_SUBTRACT => self.binary_op("-"),
-                        OpCode::OP_MULTIPLY => self.binary_op("*"),
-                        OpCode::OP_DIVIDE => self.binary_op("/"),
+                        OpCode::OP_ADD => BINARY_OP!(+, self),
+                        OpCode::OP_SUBTRACT => BINARY_OP!(-, self),
+                        OpCode::OP_MULTIPLY => BINARY_OP!(*, self),
+                        OpCode::OP_DIVIDE => BINARY_OP!(/, self),
                         OpCode::OP_NEGATE => {
                             let value = -self.pop();
                             self.push(value);
@@ -66,7 +76,7 @@ impl VM {
                         OpCode::OP_RETURN => {
                             print_value(self.pop());
                             print!("\n");
-                            return INTERPRET_OK
+                            return INTERPRET_OK;
                         }
                     }
                 }
@@ -86,7 +96,7 @@ impl VM {
         self.chunk.constants.values[index]
     }
 
-    fn binary_op(&mut self, op: &str){
+    fn binary_op(&mut self, op: &str) {
         let b = self.pop();
         let a = self.pop();
         match op {
@@ -118,4 +128,3 @@ impl VM {
         self.stack[self.stack_top]
     }
 }
-
