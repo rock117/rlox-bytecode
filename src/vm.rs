@@ -1,7 +1,8 @@
 use crate::chunk::{Chunk, OpCode};
-use crate::compiler::Compiler;
+use crate::compiler::{Compiler, Parser};
 use crate::debug;
 use crate::debug::disassemble_instruction;
+use crate::scanner::Scanner;
 use crate::value::{print_value, Value};
 use crate::vm::InterpretResult::INTERPRET_OK;
 
@@ -43,9 +44,13 @@ impl VM {
     }
     pub fn interpret(&mut self, source: &str) -> InterpretResult {
         let chunk = Chunk::new();
-        let mut compiler: Compiler = todo!(); //Compiler::new();
-        if !compiler.compile() {}
-        self.chunk = chunk;
+        let scanner= Scanner::new(source);
+        let parser = Parser::new(Default::default(), Default::default());
+        let mut compiler: Compiler = Compiler::new(parser, scanner, chunk);
+        if !compiler.compile() {
+
+        }
+       // self.chunk = chunk;
         INTERPRET_OK
     }
 

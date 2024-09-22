@@ -72,6 +72,16 @@ pub enum TokenType {
     TOKEN_EOF,
 }
 
+
+impl Default for Token {
+    fn default() -> Self {
+        Token {
+            r#type: TokenType::TOKEN_ERROR, // TODO
+            lexume: "".into(),
+            line: 0,
+        }
+    }
+}
 impl Scanner {
     pub fn new(source: &str) -> Self {
         Self {
