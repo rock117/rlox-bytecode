@@ -1,5 +1,12 @@
+use crate::scanner::TokenType::{
+    TOKEN_AND, TOKEN_BANG, TOKEN_BANG_EQUAL, TOKEN_CLASS, TOKEN_COMMA, TOKEN_DOT, TOKEN_ELSE,
+    TOKEN_EOF, TOKEN_EQUAL, TOKEN_EQUAL_EQUAL, TOKEN_FALSE, TOKEN_FOR, TOKEN_FUN, TOKEN_GREATER,
+    TOKEN_GREATER_EQUAL, TOKEN_IDENTIFIER, TOKEN_IF, TOKEN_LEFT_BRACE, TOKEN_LEFT_PAREN,
+    TOKEN_LESS, TOKEN_LESS_EQUAL, TOKEN_MINUS, TOKEN_NIL, TOKEN_NUMBER, TOKEN_OR, TOKEN_PLUS,
+    TOKEN_PRINT, TOKEN_RETURN, TOKEN_RIGHT_BRACE, TOKEN_RIGHT_PAREN, TOKEN_SEMICOLON, TOKEN_SLASH,
+    TOKEN_STAR, TOKEN_STRING, TOKEN_SUPER, TOKEN_THIS, TOKEN_TRUE, TOKEN_VAR, TOKEN_WHILE,
+};
 use std::io::read_to_string;
-use crate::scanner::TokenType::{TOKEN_AND, TOKEN_BANG, TOKEN_BANG_EQUAL, TOKEN_CLASS, TOKEN_COMMA, TOKEN_DOT, TOKEN_ELSE, TOKEN_EOF, TOKEN_EQUAL, TOKEN_EQUAL_EQUAL, TOKEN_FALSE, TOKEN_FOR, TOKEN_FUN, TOKEN_GREATER, TOKEN_GREATER_EQUAL, TOKEN_IDENTIFIER, TOKEN_IF, TOKEN_LEFT_BRACE, TOKEN_LEFT_PAREN, TOKEN_LESS, TOKEN_LESS_EQUAL, TOKEN_MINUS, TOKEN_NIL, TOKEN_NUMBER, TOKEN_OR, TOKEN_PLUS, TOKEN_PRINT, TOKEN_RETURN, TOKEN_RIGHT_BRACE, TOKEN_RIGHT_PAREN, TOKEN_SEMICOLON, TOKEN_SLASH, TOKEN_STAR, TOKEN_STRING, TOKEN_SUPER, TOKEN_THIS, TOKEN_TRUE, TOKEN_VAR, TOKEN_WHILE};
 
 #[derive(Debug)]
 pub struct Scanner {
@@ -9,14 +16,14 @@ pub struct Scanner {
     source: Vec<char>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Token {
-    r#type: TokenType,
-    lexume: String,
-    line: usize,
+    pub(crate) r#type: TokenType,
+    pub(crate) lexume: String,
+    pub(crate) line: usize,
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum TokenType {
     // Single-character tokens.
     TOKEN_LEFT_PAREN,
@@ -66,7 +73,7 @@ pub enum TokenType {
 }
 
 impl Scanner {
-    pub fn init_scanner(source: &str) -> Self {
+    pub fn new(source: &str) -> Self {
         Self {
             start: 0,
             current: 0,
@@ -75,6 +82,7 @@ impl Scanner {
         }
     }
 
+    /// get next token
     pub fn scan_token(&mut self) -> Token {
         self.skip_whitespace();
         self.start = self.current;
@@ -103,19 +111,35 @@ impl Scanner {
             '/' => return self.make_token(TOKEN_SLASH),
             '*' => return self.make_token(TOKEN_STAR),
             '!' => {
-                let token = if self.match_('=') { TOKEN_BANG_EQUAL } else { TOKEN_BANG };
+                let token = if self.match_('=') {
+                    TOKEN_BANG_EQUAL
+                } else {
+                    TOKEN_BANG
+                };
                 return self.make_token(token);
             }
             '=' => {
-                let token = if self.match_('=') { TOKEN_EQUAL_EQUAL } else { TOKEN_EQUAL };
+                let token = if self.match_('=') {
+                    TOKEN_EQUAL_EQUAL
+                } else {
+                    TOKEN_EQUAL
+                };
                 return self.make_token(token);
             }
             '<' => {
-                let token = if self.match_('=') { TOKEN_LESS_EQUAL } else { TOKEN_LESS };
+                let token = if self.match_('=') {
+                    TOKEN_LESS_EQUAL
+                } else {
+                    TOKEN_LESS
+                };
                 return self.make_token(token);
             }
             '>' => {
-                let token = if self.match_('=') { TOKEN_GREATER_EQUAL } else { TOKEN_GREATER };
+                let token = if self.match_('=') {
+                    TOKEN_GREATER_EQUAL
+                } else {
+                    TOKEN_GREATER
+                };
                 return self.make_token(token);
             }
             '"' => return self.string(),
@@ -168,7 +192,9 @@ impl Scanner {
         loop {
             let c = self.peek();
             match c {
-                ' ' | '\r' | '\t' => { self.advance(); }
+                ' ' | '\r' | '\t' => {
+                    self.advance();
+                }
                 '\n' => {
                     self.line += 1;
                     self.advance();
@@ -183,7 +209,7 @@ impl Scanner {
                         return;
                     }
                 }
-                _ => return
+                _ => return,
             };
         }
     }
@@ -279,8 +305,17 @@ impl Scanner {
         TOKEN_IDENTIFIER
     }
 
-    fn check_keyword(&mut self, start: usize, length: usize, rest: &str, r#type: TokenType) -> TokenType {
-        if self.current - self.start == start + length && rest == String::from_iter(&self.source[self.start + start..self.start + start + length]) {
+    fn check_keyword(
+        &mut self,
+        start: usize,
+        length: usize,
+        rest: &str,
+        r#type: TokenType,
+    ) -> TokenType {
+        if self.current - self.start == start + length
+            && rest
+                == String::from_iter(&self.source[self.start + start..self.start + start + length])
+        {
             return r#type;
         }
         return TOKEN_IDENTIFIER;
@@ -294,8 +329,3 @@ fn is_digit(c: char) -> bool {
 fn is_alpha(c: char) -> bool {
     (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'
 }
-
-
-
-
-

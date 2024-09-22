@@ -1,22 +1,22 @@
 pub mod chunk;
+mod compiler;
 mod debug;
+mod scanner;
 mod value;
 mod vm;
-mod compiler;
-mod scanner;
 
-use std::cmp::PartialEq;
-use std::sync::atomic::Ordering;
-use chunk::*;
-use debug::*;
-use value::*;
 use crate::chunk::OpCode::{OP_ADD, OP_CONSTANT, OP_DIVIDE, OP_NEGATE, OP_RETURN};
 use crate::vm::InterpretResult::{INTERPRET_COMPILE_ERROR, INTERPRET_RUNTIME_ERROR};
 use crate::vm::VM;
+use chunk::*;
+use debug::*;
+use std::cmp::PartialEq;
+use std::sync::atomic::Ordering;
+use value::*;
 
 fn main() {
     let argc = std::env::args().into_iter().collect::<Vec<String>>();
-    let mut vm:VM = todo!();
+    let mut vm: VM = todo!();
     if argc.len() == 1 {
         repl(&mut vm);
     } else if argc.len() == 2 {
@@ -40,7 +40,6 @@ fn repl(vm: &mut VM) {
         }
     }
 }
-
 
 fn run_file(vm: &mut VM, path: &str) {
     let source = std::fs::read_to_string(path).unwrap();

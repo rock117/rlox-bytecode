@@ -1,6 +1,6 @@
-use int_enum::IntEnum;
 use crate::chunk::OpCode::{OP_CONSTANT, OP_NEGATE, OP_RETURN};
 use crate::value::{Value, ValueArray};
+use int_enum::IntEnum;
 
 use int_to_c_enum::TryFromInt;
 #[repr(u8)]
@@ -26,12 +26,16 @@ pub struct Chunk {
 
 impl Chunk {
     pub fn new() -> Self {
-        Chunk { codes: vec![], constants: ValueArray::new(), lines: vec![] }
+        Chunk {
+            codes: vec![],
+            constants: ValueArray::new(),
+            lines: vec![],
+        }
     }
 
     /// write opcodes or operands. It’s all raw bytes
-    pub fn write_chunk(&mut self, byte: u8, line: usize) {
-        self.codes.push(byte);
+    pub fn write_chunk<B: Into<u8>>(&mut self, byte: B, line: usize) {
+        self.codes.push(byte.into());
         self.lines.push(line);
     }
 
@@ -42,5 +46,11 @@ impl Chunk {
     pub fn add_constant(&mut self, value: Value) -> usize {
         self.constants.write_value_array(value);
         self.constants.count() - 1
+    }
+}
+
+impl Into<u8> for OpCode {
+    fn into(self) -> u8 {
+        todo!()
     }
 }

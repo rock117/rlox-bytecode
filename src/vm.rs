@@ -1,8 +1,9 @@
 use crate::chunk::{Chunk, OpCode};
-use crate::value::{print_value, Value};
-use crate::vm::InterpretResult::INTERPRET_OK;
+use crate::compiler::Compiler;
 use crate::debug;
 use crate::debug::disassemble_instruction;
+use crate::value::{print_value, Value};
+use crate::vm::InterpretResult::INTERPRET_OK;
 
 const STACK_MAX: usize = 256;
 
@@ -18,7 +19,6 @@ pub enum InterpretResult {
     INTERPRET_COMPILE_ERROR,
     INTERPRET_RUNTIME_ERROR,
 }
-
 
 macro_rules! BINARY_OP {
     ($op:tt, $self:expr) => {
@@ -42,7 +42,11 @@ impl VM {
         self.chunk.codes[self.ip_index]
     }
     pub fn interpret(&mut self, source: &str) -> InterpretResult {
-        self.run()
+        let chunk = Chunk::new();
+        let mut compiler: Compiler = todo!(); //Compiler::new();
+        if !compiler.compile() {}
+        self.chunk = chunk;
+        INTERPRET_OK
     }
 
     fn run(&mut self) -> InterpretResult {
@@ -58,28 +62,26 @@ impl VM {
             let instruction = self.read_byte();
 
             match OpCode::try_from(instruction) {
-                Ok(instruction) => {
-                    match instruction {
-                        OpCode::OP_CONSTANT => {
-                            let constant = self.read_constant();
-                            self.push(constant);
-                            print!("\n");
-                        }
-                        OpCode::OP_ADD => BINARY_OP!(+, self),
-                        OpCode::OP_SUBTRACT => BINARY_OP!(-, self),
-                        OpCode::OP_MULTIPLY => BINARY_OP!(*, self),
-                        OpCode::OP_DIVIDE => BINARY_OP!(/, self),
-                        OpCode::OP_NEGATE => {
-                            let value = -self.pop();
-                            self.push(value);
-                        }
-                        OpCode::OP_RETURN => {
-                            print_value(self.pop());
-                            print!("\n");
-                            return INTERPRET_OK;
-                        }
+                Ok(instruction) => match instruction {
+                    OpCode::OP_CONSTANT => {
+                        let constant = self.read_constant();
+                        self.push(constant);
+                        print!("\n");
                     }
-                }
+                    OpCode::OP_ADD => BINARY_OP!(+, self),
+                    OpCode::OP_SUBTRACT => BINARY_OP!(-, self),
+                    OpCode::OP_MULTIPLY => BINARY_OP!(*, self),
+                    OpCode::OP_DIVIDE => BINARY_OP!(/, self),
+                    OpCode::OP_NEGATE => {
+                        let value = -self.pop();
+                        self.push(value);
+                    }
+                    OpCode::OP_RETURN => {
+                        print_value(self.pop());
+                        print!("\n");
+                        return INTERPRET_OK;
+                    }
+                },
                 Err(_) => {}
             }
         }
