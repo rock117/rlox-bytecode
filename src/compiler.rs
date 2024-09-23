@@ -236,7 +236,7 @@ impl Compiler {
             .lexume
             .parse::<f64>()
             .expect(&format!("{} not a number", self.parser.previous.lexume));
-        self.emit_constant(value);
+        self.emit_constant(Value::number_val(value));
     }
 
     fn unary(&mut self) {

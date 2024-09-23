@@ -45,24 +45,33 @@ impl Value {
         }
     }
 
-    pub fn as_bool(value: Value) -> bool {
-        unsafe { value.as_.boolean }
+    pub fn as_bool(&self) -> bool {
+        unsafe { self.as_.boolean }
     }
 
-    pub fn as_number(value: Value) -> f64 {
-        unsafe { value.as_.number }
+    pub fn as_number(&self) -> f64 {
+        unsafe { self.as_.number }
     }
 
-    pub fn is_bool(value: Value) -> bool {
-        value.r#type == ValueType::VAL_BOOL
+    pub fn is_bool(&self) -> bool {
+        self.r#type == ValueType::VAL_BOOL
     }
 
-    pub fn is_number(value: Value) -> bool {
-        value.r#type == ValueType::VAL_NUMBER
+    pub fn is_number(&self) -> bool {
+        self.r#type == ValueType::VAL_NUMBER
     }
 
-    pub fn is_nil(value: Value) -> bool {
-        value.r#type == ValueType::VAL_NIL
+    pub fn is_nil(&self) -> bool {
+        self.r#type == ValueType::VAL_NIL
+    }
+}
+
+impl Default for Value {
+    fn default() -> Self {
+        Self {
+            r#type: ValueType::VAL_NIL,
+            as_: InnerValue {number: 0f64}
+        }
     }
 }
 
@@ -93,5 +102,5 @@ impl ValueArray {
 }
 
 pub fn print_value(value: Value) {
-    print!("{:?}", value); // in c: printf("%g", value);
+    print!("{:?}", value.as_number());
 }
