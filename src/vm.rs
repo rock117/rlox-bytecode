@@ -1,9 +1,11 @@
 use crate::chunk::{Chunk, OpCode};
+use crate::chunk::OpCode::OP_NIL;
 use crate::compiler::{Compiler, Parser};
 use crate::debug;
 use crate::debug::disassemble_instruction;
 use crate::scanner::Scanner;
 use crate::value::{print_value, Value};
+use crate::value::ValueType::VAL_NIL;
 use crate::vm::InterpretResult::{INTERPRET_OK, INTERPRET_RUNTIME_ERROR};
 
 const STACK_MAX: usize = 256;
@@ -79,6 +81,9 @@ impl VM {
                         self.push(constant);
                         print!("\n");
                     }
+                    OpCode::OP_NIL =>  self.push(Value::nil_val()),
+                    OpCode::OP_TRUE =>  self.push(Value::bool_val(true)),
+                    OpCode::OP_FALSE => self.push(Value::bool_val(false)),
                     OpCode::OP_ADD =>  BINARY_OP!(+, self),
                     OpCode::OP_SUBTRACT => BINARY_OP!(-, self),
                     OpCode::OP_MULTIPLY =>  BINARY_OP!(*, self),

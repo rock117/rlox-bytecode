@@ -102,5 +102,9 @@ impl ValueArray {
 }
 
 pub fn print_value(value: Value) {
-    print!("{:?}", value.as_number());
+    match value.r#type {
+        ValueType::VAL_BOOL => print!("{}", value.as_bool()),
+        ValueType::VAL_NIL => print!("nil"),
+        ValueType::VAL_NUMBER => print!("{:?}", value.as_number()),
+    }
 }
