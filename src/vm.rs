@@ -4,7 +4,7 @@ use crate::compiler::{Compiler, Parser};
 use crate::debug;
 use crate::debug::disassemble_instruction;
 use crate::scanner::Scanner;
-use crate::value::{print_value, Value};
+use crate::value::{print_value, Value, values_equal, ValueType};
 use crate::value::ValueType::VAL_NIL;
 use crate::vm::InterpretResult::{INTERPRET_OK, INTERPRET_RUNTIME_ERROR};
 
@@ -16,6 +16,7 @@ pub struct VM {
     stack: [Value; STACK_MAX],
     stack_top: usize,
 }
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum InterpretResult {
     INTERPRET_OK,
@@ -23,7 +24,8 @@ pub enum InterpretResult {
     INTERPRET_RUNTIME_ERROR,
 }
 
-macro_rules! BINARY_OP {
+// TODO refact , BINARY_OP_NUM_TYPE, BINARY_OP_BOOL_TYPE
+macro_rules! BINARY_OP_NUM_TYPE {
     ($op:tt, $self:expr) => {
         {
 
@@ -34,6 +36,21 @@ macro_rules! BINARY_OP {
             let b = $self.pop().as_number();
             let a = $self.pop().as_number();
             $self.push(Value::number_val(a $op b));
+        }
+    };
+}
+
+macro_rules! BINARY_OP_BOOL_TYPE {
+    ($op:tt, $self:expr) => {
+        {
+
+            if !$self.peek(0).is_number() || !$self.peek(1).is_number() {
+                $self.runtime_error("Operands must be numbers.");
+                return INTERPRET_RUNTIME_ERROR;
+            }
+            let b = $self.pop().as_number();
+            let a = $self.pop().as_number();
+            $self.push(Value::bool_val(a $op b));
         }
     };
 }
@@ -52,13 +69,11 @@ impl VM {
     }
     pub fn interpret(&mut self, source: &str) -> InterpretResult {
         let chunk = Chunk::new();
-        let scanner= Scanner::new(source);
+        let scanner = Scanner::new(source);
         let parser = Parser::new(Default::default(), Default::default());
         let mut compiler: Compiler = Compiler::new(parser, scanner, chunk);
-        if !compiler.compile() {
-
-        }
-       // self.chunk = chunk;
+        if !compiler.compile() {}
+        // self.chunk = chunk;
         INTERPRET_OK
     }
 
@@ -81,13 +96,24 @@ impl VM {
                         self.push(constant);
                         print!("\n");
                     }
-                    OpCode::OP_NIL =>  self.push(Value::nil_val()),
-                    OpCode::OP_TRUE =>  self.push(Value::bool_val(true)),
+                    OpCode::OP_NIL => self.push(Value::nil_val()),
+                    OpCode::OP_TRUE => self.push(Value::bool_val(true)),
                     OpCode::OP_FALSE => self.push(Value::bool_val(false)),
-                    OpCode::OP_ADD =>  BINARY_OP!(+, self),
-                    OpCode::OP_SUBTRACT => BINARY_OP!(-, self),
-                    OpCode::OP_MULTIPLY =>  BINARY_OP!(*, self),
-                    OpCode::OP_DIVIDE =>  BINARY_OP!(/, self),
+                    OpCode::OP_EQUAL => {
+                        let b = self.pop();
+                        let a = self.pop();
+                        self.push(Value::bool_val(values_equal(a, b)))
+                    }
+                    OpCode::OP_GREATER => BINARY_OP_BOOL_TYPE!(>, self),
+                    OpCode::OP_LESS => BINARY_OP_BOOL_TYPE!(<, self),
+                    OpCode::OP_ADD => BINARY_OP_NUM_TYPE!( +, self),
+                    OpCode::OP_SUBTRACT => BINARY_OP_NUM_TYPE!( -, self),
+                    OpCode::OP_MULTIPLY => BINARY_OP_NUM_TYPE!( *, self),
+                    OpCode::OP_DIVIDE => BINARY_OP_NUM_TYPE!(/, self),
+                    OpCode::OP_NOT => {
+                        let v = self.pop();
+                        self.push(Value::bool_val(self.is_falsey(v)))
+                    },
                     OpCode::OP_NEGATE => {
                         if !self.peek(0).is_number() {
                             self.runtime_error("Operand must be a number.");
@@ -129,7 +155,7 @@ impl VM {
     fn runtime_error(&mut self, msg: &str) {
         eprint!("\n");
         // size_t instruction = vm.ip - vm.chunk->code - 1; TODO
-        let instruction = self.ip() as usize - (self.chunk.codes.len() - 1 ); // self.chunk->code - 1;
+        let instruction = self.ip() as usize - (self.chunk.codes.len() - 1); // self.chunk->code - 1;
         let line = self.chunk.lines[instruction];
         eprint!("[line {}] in script\n", line);
         self.reset_stack();
@@ -145,6 +171,9 @@ impl VM {
         self.stack[self.stack_top]
     }
     fn peek(&self, distance: usize) -> Value {
-        return self.stack[self.stack_top - distance]
+        return self.stack[self.stack_top - distance];
+    }
+    fn is_falsey(&self, value: Value) -> bool {
+        value.is_nil() || (value.is_bool() && !value.as_bool())
     }
 }

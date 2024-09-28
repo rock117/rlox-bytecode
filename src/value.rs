@@ -108,3 +108,13 @@ pub fn print_value(value: Value) {
         ValueType::VAL_NUMBER => print!("{:?}", value.as_number()),
     }
 }
+pub fn values_equal( a: Value,  b: Value) -> bool {
+    if a.r#type != b.r#type {
+        return false
+    }
+    match a.r#type {
+        ValueType::VAL_BOOL => a.as_bool() == b.as_bool(),
+        ValueType::VAL_NIL => true,
+        ValueType::VAL_NUMBER => a.as_number() == b.as_number()
+    }
+}

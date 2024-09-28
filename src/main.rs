@@ -16,7 +16,7 @@ use value::*;
 
 fn main() {
     let argc = std::env::args().into_iter().collect::<Vec<String>>();
-    let mut vm: VM = todo!();
+    let mut vm: VM = VM::new(Chunk::new());
     if argc.len() == 1 {
         repl(&mut vm);
     } else if argc.len() == 2 {
@@ -29,7 +29,7 @@ fn main() {
 
 fn repl(vm: &mut VM) {
     loop {
-        print!("> ");
+        eprint!("> ");
         let mut line = String::new();
         match std::io::stdin().read_line(&mut line) {
             Ok(0) => return,

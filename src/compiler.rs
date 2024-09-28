@@ -1,6 +1,6 @@
-use crate::chunk::OpCode::{OP_ADD, OP_CONSTANT, OP_DIVIDE, OP_FALSE, OP_MULTIPLY, OP_NEGATE, OP_NIL, OP_RETURN, OP_SUBTRACT, OP_TRUE};
+use crate::chunk::OpCode::{OP_ADD, OP_CONSTANT, OP_DIVIDE, OP_EQUAL, OP_FALSE, OP_GREATER, OP_LESS, OP_MULTIPLY, OP_NEGATE, OP_NIL, OP_NOT, OP_RETURN, OP_SUBTRACT, OP_TRUE};
 use crate::chunk::{Chunk, OpCode};
-use crate::compiler::Precedence::{PREC_ASSIGNMENT, PREC_FACTOR, PREC_NONE, PREC_TERM, PREC_UNARY};
+use crate::compiler::Precedence::{PREC_ASSIGNMENT, PREC_COMPARISON, PREC_EQUALITY, PREC_FACTOR, PREC_NONE, PREC_TERM, PREC_UNARY};
 use crate::debug::disassemble_chunk;
 use crate::scanner::TokenType::{TOKEN_EOF, TOKEN_ERROR, TOKEN_RIGHT_PAREN};
 use crate::scanner::{Scanner, Token, TokenType, TokenType::*};
@@ -129,6 +129,12 @@ impl Compiler {
         self.parse_precedence((rule.unwrap().precedence.add(1)));
 
         match operator_type {
+            TOKEN_BANG_EQUAL => self.emit_bytes(OP_EQUAL, OP_NOT),
+            TOKEN_EQUAL_EQUAL => self.emit_byte(OP_EQUAL),
+            TOKEN_GREATER => self.emit_byte(OP_GREATER),
+            TOKEN_GREATER_EQUAL => self.emit_bytes(OP_LESS, OP_NOT),
+            TOKEN_LESS => self.emit_byte(OP_LESS),
+            TOKEN_LESS_EQUAL => self.emit_bytes(OP_GREATER, OP_NOT),
             TOKEN_PLUS => self.emit_byte(OP_ADD),
             TOKEN_MINUS => self.emit_byte(OP_SUBTRACT),
             TOKEN_STAR => self.emit_byte(OP_MULTIPLY),
@@ -182,15 +188,15 @@ impl Compiler {
                 Some(|c: &mut Compiler| c.binary()),
                 PREC_FACTOR,
             )),
-            TOKEN_BANG => Some(ParseRule::new(None, None, PREC_NONE)),
-            TOKEN_BANG_EQUAL => Some(ParseRule::new(None, None, PREC_NONE)),
+            TOKEN_BANG => Some(ParseRule::new(Some(|c: &mut Compiler| c.unary()), None, PREC_NONE)),
+            TOKEN_BANG_EQUAL => Some(ParseRule::new(None, Some(|c: &mut Compiler| c.binary()), PREC_EQUALITY)),
             TOKEN_EQUAL => Some(ParseRule::new(None, None, PREC_NONE)),
 
-            TOKEN_EQUAL_EQUAL => Some(ParseRule::new(None, None, PREC_NONE)),
-            TOKEN_GREATER => Some(ParseRule::new(None, None, PREC_NONE)),
-            TOKEN_GREATER_EQUAL => Some(ParseRule::new(None, None, PREC_NONE)),
-            TOKEN_LESS => Some(ParseRule::new(None, None, PREC_NONE)),
-            TOKEN_LESS_EQUAL => Some(ParseRule::new(None, None, PREC_NONE)),
+            TOKEN_EQUAL_EQUAL => Some(ParseRule::new(None, Some(|c: &mut Compiler| c.binary()), PREC_EQUALITY)),
+            TOKEN_GREATER => Some(ParseRule::new(None, Some(|c: &mut Compiler| c.binary()), PREC_COMPARISON)),
+            TOKEN_GREATER_EQUAL => Some(ParseRule::new(None, Some(|c: &mut Compiler| c.binary()), PREC_COMPARISON)),
+            TOKEN_LESS => Some(ParseRule::new(None, Some(|c: &mut Compiler| c.binary()), PREC_COMPARISON)),
+            TOKEN_LESS_EQUAL => Some(ParseRule::new(None, Some(|c: &mut Compiler| c.binary()), PREC_COMPARISON)),
 
             TOKEN_IDENTIFIER => Some(ParseRule::new(None, None, PREC_NONE)),
             TOKEN_STRING => Some(ParseRule::new(None, None, PREC_NONE)),
@@ -253,6 +259,7 @@ impl Compiler {
         self.expression();
         // Emit the operator instruction.
         match operatorType {
+            TOKEN_BANG => self.emit_byte(OP_NOT),
             TOKEN_MINUS => self.emit_byte(OP_NEGATE),
             _ => return, // Unreachable.
         }
