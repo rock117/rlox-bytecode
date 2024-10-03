@@ -1,4 +1,5 @@
 use std::fmt::{Debug, Formatter};
+use crate::value::Value::{boolean, nil, number};
 
 /// The constant pool is an array of values.
 #[derive(Debug, Clone)]
@@ -6,85 +7,67 @@ pub struct ValueArray {
     pub values: Vec<Value>,
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum ValueType {
-    VAL_BOOL,
-    VAL_NIL,
-    VAL_NUMBER,
-}
-
-#[derive(Copy, Clone)]
-union InnerValue {
-    boolean: bool,
-    number: f64,
-}
-
 #[derive(Debug, Copy, Clone)]
-pub struct Value {
-    r#type: ValueType,
-    as_: InnerValue,
+pub enum  Value {
+    boolean(bool),
+    number(f64),
+    nil
 }
 
 impl Value {
     pub fn nil_val() -> Self {
-        Self {
-            r#type: ValueType::VAL_NIL,
-            as_: InnerValue { number: 0f64 },
-        }
+        nil
     }
     pub fn number_val(value: f64) -> Self {
-        Self {
-            r#type: ValueType::VAL_NUMBER,
-            as_: InnerValue { number: value },
-        }
+        number(value)
     }
     pub fn bool_val(value: bool) -> Self {
-        Self {
-            r#type: ValueType::VAL_BOOL,
-            as_: InnerValue { boolean: value },
-        }
+        boolean(value)
     }
 
     pub fn as_bool(&self) -> bool {
-        unsafe { self.as_.boolean }
+        match self {
+            boolean(v) => *v,
+            _ => false
+        }
     }
 
     pub fn as_number(&self) -> f64 {
-        unsafe { self.as_.number }
+        match self {
+            number(v) => *v,
+            _ => 0f64
+        }
     }
 
     pub fn is_bool(&self) -> bool {
-        self.r#type == ValueType::VAL_BOOL
+        match self {
+            boolean(_) => true,
+            _ => false
+        }
     }
 
     pub fn is_number(&self) -> bool {
-        self.r#type == ValueType::VAL_NUMBER
+        match self {
+            number(_) => true,
+            _ => false
+        }
     }
 
     pub fn is_nil(&self) -> bool {
-        self.r#type == ValueType::VAL_NIL
+        match self {
+            nil => true,
+            _ => false
+        }
     }
 }
 
 impl Default for Value {
     fn default() -> Self {
-        Self {
-            r#type: ValueType::VAL_NIL,
-            as_: InnerValue {number: 0f64}
-        }
+        nil
     }
 }
 
-impl Debug for InnerValue {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        unsafe {
-            match *self {
-                InnerValue { boolean } => write!(f, "{}", self.boolean),
-                InnerValue { number } => write!(f, "{}", self.number)
-            }
-        }
-    }
-}
+
 
 
 impl ValueArray {
@@ -102,19 +85,16 @@ impl ValueArray {
 }
 
 pub fn print_value(value: Value) {
-    match value.r#type {
-        ValueType::VAL_BOOL => print!("{}", value.as_bool()),
-        ValueType::VAL_NIL => print!("nil"),
-        ValueType::VAL_NUMBER => print!("{:?}", value.as_number()),
+    match value {
+        nil => print!("nil"),
+        _ => print!("{:?}", value),
     }
 }
 pub fn values_equal( a: Value,  b: Value) -> bool {
-    if a.r#type != b.r#type {
-        return false
-    }
-    match a.r#type {
-        ValueType::VAL_BOOL => a.as_bool() == b.as_bool(),
-        ValueType::VAL_NIL => true,
-        ValueType::VAL_NUMBER => a.as_number() == b.as_number()
+    match (a, b) {
+        (number(a), number(b)) => a == b,
+        (boolean(a), boolean(b)) => a == b,
+        (nil, nil) => true,
+        (_, _) => false
     }
 }

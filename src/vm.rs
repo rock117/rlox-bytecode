@@ -4,8 +4,7 @@ use crate::compiler::{Compiler, Parser};
 use crate::debug;
 use crate::debug::disassemble_instruction;
 use crate::scanner::Scanner;
-use crate::value::{print_value, Value, values_equal, ValueType};
-use crate::value::ValueType::VAL_NIL;
+use crate::value::{print_value, Value, values_equal};
 use crate::vm::InterpretResult::{INTERPRET_OK, INTERPRET_RUNTIME_ERROR};
 
 const STACK_MAX: usize = 256;
