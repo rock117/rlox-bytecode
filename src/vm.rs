@@ -1,10 +1,10 @@
-use crate::chunk::{Chunk, OpCode};
 use crate::chunk::OpCode::OP_NIL;
+use crate::chunk::{Chunk, OpCode};
 use crate::compiler::{Compiler, Parser};
 use crate::debug;
 use crate::debug::disassemble_instruction;
 use crate::scanner::Scanner;
-use crate::value::{print_value, Value, values_equal};
+use crate::value::{print_value, values_equal, Value};
 use crate::vm::InterpretResult::{INTERPRET_OK, INTERPRET_RUNTIME_ERROR};
 
 const STACK_MAX: usize = 256;
@@ -12,7 +12,7 @@ const STACK_MAX: usize = 256;
 pub struct VM {
     chunk: Chunk,
     ip_index: usize,
-    stack: [Value; STACK_MAX],
+    stack: Vec<Value>,
     stack_top: usize,
 }
 
@@ -59,7 +59,7 @@ impl VM {
         Self {
             chunk,
             ip_index: 0,
-            stack: [Value::default(); STACK_MAX],
+            stack: vec![Value::default(); STACK_MAX],
             stack_top: 0,
         }
     }
@@ -81,7 +81,7 @@ impl VM {
             print!("          ");
             for slot in &self.stack[0..self.stack_top] {
                 print!("[ ");
-                print_value(*slot);
+                print_value(slot.clone());
                 print!(" ]");
             }
             print!("\n");
@@ -105,14 +105,25 @@ impl VM {
                     }
                     OpCode::OP_GREATER => BINARY_OP_BOOL_TYPE!(>, self),
                     OpCode::OP_LESS => BINARY_OP_BOOL_TYPE!(<, self),
-                    OpCode::OP_ADD => BINARY_OP_NUM_TYPE!( +, self),
+                    OpCode::OP_ADD => {
+                        if self.peek(0).is_string() && self.peek(1).is_string() {
+                            self.concatenate();
+                        } else if self.peek(0).is_number() && self.peek(1).is_number() {
+                            let b = self.pop().as_number();
+                            let a = self.pop().as_number();
+                            self.push(Value::number(a + b));
+                        } else {
+                            self.runtime_error("Operands must be two numbers or two strings.");
+                            return INTERPRET_RUNTIME_ERROR;
+                        }
+                    }
                     OpCode::OP_SUBTRACT => BINARY_OP_NUM_TYPE!( -, self),
                     OpCode::OP_MULTIPLY => BINARY_OP_NUM_TYPE!( *, self),
                     OpCode::OP_DIVIDE => BINARY_OP_NUM_TYPE!(/, self),
                     OpCode::OP_NOT => {
                         let v = self.pop();
                         self.push(Value::bool_val(self.is_falsey(v)))
-                    },
+                    }
                     OpCode::OP_NEGATE => {
                         if !self.peek(0).is_number() {
                             self.runtime_error("Operand must be a number.");
@@ -144,7 +155,7 @@ impl VM {
 
     fn read_constant(&mut self) -> Value {
         let index = self.read_byte() as usize;
-        self.chunk.constants.values[index]
+        self.chunk.constants.values[index].clone()
     }
 
     fn reset_stack(&mut self) {
@@ -167,12 +178,18 @@ impl VM {
 
     fn pop(&mut self) -> Value {
         self.stack_top -= 1;
-        self.stack[self.stack_top]
+        self.stack[self.stack_top].clone()
     }
     fn peek(&self, distance: usize) -> Value {
-        return self.stack[self.stack_top - distance];
+        return self.stack[self.stack_top - distance].clone();
     }
     fn is_falsey(&self, value: Value) -> bool {
         value.is_nil() || (value.is_bool() && !value.as_bool())
+    }
+
+    fn concatenate(&mut self) {
+        let b = self.pop();
+        let a = self.pop();
+        self.push(Value::string_val(format!("{}{}", a.as_string(), b.as_string())));
     }
 }

@@ -1,6 +1,11 @@
-use crate::chunk::OpCode::{OP_ADD, OP_CONSTANT, OP_DIVIDE, OP_EQUAL, OP_FALSE, OP_GREATER, OP_LESS, OP_MULTIPLY, OP_NEGATE, OP_NIL, OP_NOT, OP_RETURN, OP_SUBTRACT, OP_TRUE};
+use crate::chunk::OpCode::{
+    OP_ADD, OP_CONSTANT, OP_DIVIDE, OP_EQUAL, OP_FALSE, OP_GREATER, OP_LESS, OP_MULTIPLY,
+    OP_NEGATE, OP_NIL, OP_NOT, OP_RETURN, OP_SUBTRACT, OP_TRUE,
+};
 use crate::chunk::{Chunk, OpCode};
-use crate::compiler::Precedence::{PREC_ASSIGNMENT, PREC_COMPARISON, PREC_EQUALITY, PREC_FACTOR, PREC_NONE, PREC_TERM, PREC_UNARY};
+use crate::compiler::Precedence::{
+    PREC_ASSIGNMENT, PREC_COMPARISON, PREC_EQUALITY, PREC_FACTOR, PREC_NONE, PREC_TERM, PREC_UNARY,
+};
 use crate::debug::disassemble_chunk;
 use crate::scanner::TokenType::{TOKEN_EOF, TOKEN_ERROR, TOKEN_RIGHT_PAREN};
 use crate::scanner::{Scanner, Token, TokenType, TokenType::*};
@@ -107,9 +112,9 @@ impl Compiler {
     }
 
     fn emit_bytes<B1, B2>(&mut self, byte1: B1, byte2: B2)
-        where
-            B1: Into<u8>,
-            B2: Into<u8>,
+    where
+        B1: Into<u8>,
+        B2: Into<u8>,
     {
         self.emit_byte(byte1.into());
         self.emit_byte(byte2.into());
@@ -148,7 +153,7 @@ impl Compiler {
             TOKEN_FALSE => self.emit_byte(OP_FALSE),
             TOKEN_NIL => self.emit_byte(OP_NIL),
             TOKEN_TRUE => self.emit_byte(OP_TRUE),
-            _ => unimplemented!("Unreachable!") // Unreachable.
+            _ => unimplemented!("Unreachable!"), // Unreachable.
         }
     }
 
@@ -188,15 +193,43 @@ impl Compiler {
                 Some(|c: &mut Compiler| c.binary()),
                 PREC_FACTOR,
             )),
-            TOKEN_BANG => Some(ParseRule::new(Some(|c: &mut Compiler| c.unary()), None, PREC_NONE)),
-            TOKEN_BANG_EQUAL => Some(ParseRule::new(None, Some(|c: &mut Compiler| c.binary()), PREC_EQUALITY)),
+            TOKEN_BANG => Some(ParseRule::new(
+                Some(|c: &mut Compiler| c.unary()),
+                None,
+                PREC_NONE,
+            )),
+            TOKEN_BANG_EQUAL => Some(ParseRule::new(
+                None,
+                Some(|c: &mut Compiler| c.binary()),
+                PREC_EQUALITY,
+            )),
             TOKEN_EQUAL => Some(ParseRule::new(None, None, PREC_NONE)),
 
-            TOKEN_EQUAL_EQUAL => Some(ParseRule::new(None, Some(|c: &mut Compiler| c.binary()), PREC_EQUALITY)),
-            TOKEN_GREATER => Some(ParseRule::new(None, Some(|c: &mut Compiler| c.binary()), PREC_COMPARISON)),
-            TOKEN_GREATER_EQUAL => Some(ParseRule::new(None, Some(|c: &mut Compiler| c.binary()), PREC_COMPARISON)),
-            TOKEN_LESS => Some(ParseRule::new(None, Some(|c: &mut Compiler| c.binary()), PREC_COMPARISON)),
-            TOKEN_LESS_EQUAL => Some(ParseRule::new(None, Some(|c: &mut Compiler| c.binary()), PREC_COMPARISON)),
+            TOKEN_EQUAL_EQUAL => Some(ParseRule::new(
+                None,
+                Some(|c: &mut Compiler| c.binary()),
+                PREC_EQUALITY,
+            )),
+            TOKEN_GREATER => Some(ParseRule::new(
+                None,
+                Some(|c: &mut Compiler| c.binary()),
+                PREC_COMPARISON,
+            )),
+            TOKEN_GREATER_EQUAL => Some(ParseRule::new(
+                None,
+                Some(|c: &mut Compiler| c.binary()),
+                PREC_COMPARISON,
+            )),
+            TOKEN_LESS => Some(ParseRule::new(
+                None,
+                Some(|c: &mut Compiler| c.binary()),
+                PREC_COMPARISON,
+            )),
+            TOKEN_LESS_EQUAL => Some(ParseRule::new(
+                None,
+                Some(|c: &mut Compiler| c.binary()),
+                PREC_COMPARISON,
+            )),
 
             TOKEN_IDENTIFIER => Some(ParseRule::new(None, None, PREC_NONE)),
             TOKEN_STRING => Some(ParseRule::new(None, None, PREC_NONE)),
@@ -209,19 +242,31 @@ impl Compiler {
             TOKEN_CLASS => Some(ParseRule::new(None, None, PREC_NONE)),
 
             TOKEN_ELSE => Some(ParseRule::new(None, None, PREC_NONE)),
-            TOKEN_FALSE => Some(ParseRule::new(Some(|c: &mut Compiler| c.literal()), None, PREC_NONE)),
+            TOKEN_FALSE => Some(ParseRule::new(
+                Some(|c: &mut Compiler| c.literal()),
+                None,
+                PREC_NONE,
+            )),
             TOKEN_FOR => Some(ParseRule::new(None, None, PREC_NONE)),
             TOKEN_FUN => Some(ParseRule::new(None, None, PREC_NONE)),
             TOKEN_IF => Some(ParseRule::new(None, None, PREC_NONE)),
 
-            TOKEN_NIL => Some(ParseRule::new(Some(|c: &mut Compiler| c.literal()), None, PREC_NONE)),
+            TOKEN_NIL => Some(ParseRule::new(
+                Some(|c: &mut Compiler| c.literal()),
+                None,
+                PREC_NONE,
+            )),
             TOKEN_OR => Some(ParseRule::new(None, None, PREC_NONE)),
             TOKEN_PRINT => Some(ParseRule::new(None, None, PREC_NONE)),
             TOKEN_RETURN => Some(ParseRule::new(None, None, PREC_NONE)),
             TOKEN_SUPER => Some(ParseRule::new(None, None, PREC_NONE)),
 
             TOKEN_THIS => Some(ParseRule::new(None, None, PREC_NONE)),
-            TOKEN_TRUE => Some(ParseRule::new(Some(|c: &mut Compiler| c.literal()), None, PREC_NONE)),
+            TOKEN_TRUE => Some(ParseRule::new(
+                Some(|c: &mut Compiler| c.literal()),
+                None,
+                PREC_NONE,
+            )),
             TOKEN_VAR => Some(ParseRule::new(None, None, PREC_NONE)),
             TOKEN_WHILE => Some(ParseRule::new(None, None, PREC_NONE)),
             TOKEN_ERROR => Some(ParseRule::new(None, None, PREC_NONE)),
@@ -252,6 +297,11 @@ impl Compiler {
         self.emit_constant(Value::number_val(value));
     }
 
+    fn string(&mut self) {
+        self.emit_constant(Value::string_val(self.parser.previous.lexume.clone()));
+        // TODO trim the leading and trailing quotation marks
+    }
+
     fn unary(&mut self) {
         let operatorType = self.parser.previous.r#type;
         // Compile the operand.
@@ -275,12 +325,12 @@ impl Compiler {
         prefix_rule.map(|f| f(self));
         while precedence
             <= self
-            .get_rule(self.parser.current.r#type)
-            .map(|v| v.precedence)
-            .expect(&format!(
-                "rule not found for token type: {:?}",
-                self.parser.current.r#type
-            ))
+                .get_rule(self.parser.current.r#type)
+                .map(|v| v.precedence)
+                .expect(&format!(
+                    "rule not found for token type: {:?}",
+                    self.parser.current.r#type
+                ))
         {
             self.advance();
             let infix_rule = self

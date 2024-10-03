@@ -54,7 +54,7 @@ fn simple_instruction(name: &str, offset: usize) -> usize {
 fn constant_instruction(name: &str, chunk: &Chunk, offset: usize) -> usize {
     let constant = chunk.codes[(offset + 1) as usize];
     print!("{:<16} {:4} '", name, constant);
-    print_value(chunk.constants.values[constant as usize]);
+    print_value(chunk.constants.values[constant as usize].clone());
     print!("'\n");
     offset + 2
 }

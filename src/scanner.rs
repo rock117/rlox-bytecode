@@ -72,7 +72,6 @@ pub enum TokenType {
     TOKEN_EOF,
 }
 
-
 impl Default for Token {
     fn default() -> Self {
         Token {
@@ -173,7 +172,10 @@ impl Scanner {
     }
 
     fn make_token(&mut self, token_type: TokenType) -> Token {
-        println!("make_token: start: {}, current: {}", self.start, self.current);
+        println!(
+            "make_token: start: {}, current: {}",
+            self.start, self.current
+        );
         let token = Token {
             r#type: token_type,
             lexume: String::from_iter(&self.source[self.start..self.current - self.start]),
