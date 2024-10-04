@@ -10,16 +10,21 @@ pub enum OpCode {
     OP_NIL = 1,
     OP_TRUE = 2,
     OP_FALSE = 3,
-    OP_EQUAL = 4,
-    OP_GREATER = 5,
-    OP_LESS = 6,
-    OP_ADD = 7,
-    OP_SUBTRACT = 8,
-    OP_MULTIPLY = 9,
-    OP_DIVIDE = 10,
-    OP_NOT = 11,
-    OP_NEGATE = 12,
-    OP_RETURN = 13,
+    OP_POP = 4,
+    OP_GET_GLOBAL = 66,
+    OP_DEFINE_GLOBAL = 55, // TODO
+    OP_SET_GLOBAL = 111,
+    OP_EQUAL = 5,
+    OP_GREATER = 6,
+    OP_LESS = 7,
+    OP_ADD = 8,
+    OP_SUBTRACT = 9,
+    OP_MULTIPLY = 10,
+    OP_DIVIDE = 11,
+    OP_NOT = 12,
+    OP_NEGATE = 13,
+    OP_PRINT = 14,
+    OP_RETURN = 15,
 }
 
 /// vm instruction, store all instructions
@@ -50,6 +55,7 @@ impl Chunk {
         self.codes.len()
     }
 
+    /// add value to constant pool and return its pool index
     pub fn add_constant(&mut self, value: Value) -> usize {
         self.constants.write_value_array(value);
         self.constants.count() - 1
@@ -63,6 +69,10 @@ impl Into<u8> for OpCode {
             OpCode::OP_NIL => 1,
             OpCode::OP_TRUE => 2,
             OpCode::OP_FALSE => 3,
+            OpCode::OP_POP => 4,
+            OpCode::OP_GET_GLOBAL => 33,
+            OpCode::OP_SET_GLOBAL => 34,
+            OpCode::OP_DEFINE_GLOBAL => 55,
             OpCode::OP_EQUAL => 4,
             OpCode::OP_GREATER => 5,
             OpCode::OP_LESS => 6,
@@ -72,7 +82,8 @@ impl Into<u8> for OpCode {
             OpCode::OP_DIVIDE => 10,
             OpCode::OP_NOT => 11,
             OP_NEGATE => 12,
-            OP_RETURN => 13,
+            OpCode::OP_PRINT => 13,
+            OP_RETURN => 14,
         }
     }
 }

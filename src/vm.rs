@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use crate::chunk::OpCode::OP_NIL;
 use crate::chunk::{Chunk, OpCode};
 use crate::compiler::{Compiler, Parser};
@@ -14,6 +15,7 @@ pub struct VM {
     ip_index: usize,
     stack: Vec<Value>,
     stack_top: usize,
+    globals: HashMap<String, Value>,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -61,6 +63,7 @@ impl VM {
             ip_index: 0,
             stack: vec![Value::default(); STACK_MAX],
             stack_top: 0,
+            globals: HashMap::new(),
         }
     }
     fn ip(&self) -> u8 {
@@ -98,6 +101,30 @@ impl VM {
                     OpCode::OP_NIL => self.push(Value::nil_val()),
                     OpCode::OP_TRUE => self.push(Value::bool_val(true)),
                     OpCode::OP_FALSE => self.push(Value::bool_val(false)),
+                    OpCode::OP_POP => {
+                        self.pop();
+                    }
+                    OpCode::OP_GET_GLOBAL => {
+                        let name = self.read_string();
+                        let Some(value) = self.globals.get(&name) else {
+                            self.runtime_error(&format!("Undefined variable '{:?}'.", name));
+                            return INTERPRET_RUNTIME_ERROR;
+                        };
+                        self.push(value.clone());
+                    }
+                    OpCode::OP_DEFINE_GLOBAL => {
+                        let name = self.read_string();
+                        self.globals.insert(name, self.peek(0));
+                        self.pop();
+                    }
+                    OpCode::OP_SET_GLOBAL => {
+                        let name = self.read_string();
+                        if self.globals.insert(name.clone(), self.peek(0)).is_none() {
+                            self.globals.remove(&name);
+                            self.runtime_error(&format!("Undefined variable '{:?}'.", name));
+                            return INTERPRET_RUNTIME_ERROR;
+                        }
+                    }
                     OpCode::OP_EQUAL => {
                         let b = self.pop();
                         let a = self.pop();
@@ -132,13 +159,12 @@ impl VM {
                         let value = -self.pop().as_number();
                         self.push(Value::number_val(value));
                     }
-                    OpCode::OP_RETURN => {
-                        if !self.peek(0).is_number() {
-                            self.runtime_error("Operand must be a number.");
-                            return INTERPRET_RUNTIME_ERROR;
-                        }
+                    OpCode::OP_PRINT => {
                         print_value(self.pop());
                         print!("\n");
+                    }
+                    OpCode::OP_RETURN => {
+                        // Exit interpreter.
                         return INTERPRET_OK;
                     }
                 },
@@ -190,6 +216,14 @@ impl VM {
     fn concatenate(&mut self) {
         let b = self.pop();
         let a = self.pop();
-        self.push(Value::string_val(format!("{}{}", a.as_string(), b.as_string())));
+        self.push(Value::string_val(format!(
+            "{}{}",
+            a.as_string(),
+            b.as_string()
+        )));
+    }
+
+    fn read_string(&mut self) -> String {
+        self.read_constant().as_string().into()
     }
 }

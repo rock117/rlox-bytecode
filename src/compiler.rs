@@ -1,12 +1,10 @@
-use crate::chunk::OpCode::{
-    OP_ADD, OP_CONSTANT, OP_DIVIDE, OP_EQUAL, OP_FALSE, OP_GREATER, OP_LESS, OP_MULTIPLY,
-    OP_NEGATE, OP_NIL, OP_NOT, OP_RETURN, OP_SUBTRACT, OP_TRUE,
-};
+use crate::chunk::OpCode::{OP_ADD, OP_CONSTANT, OP_DEFINE_GLOBAL, OP_DIVIDE, OP_EQUAL, OP_FALSE, OP_GET_GLOBAL, OP_GREATER, OP_LESS, OP_MULTIPLY, OP_NEGATE, OP_NIL, OP_NOT, OP_POP, OP_PRINT, OP_RETURN, OP_SET_GLOBAL, OP_SUBTRACT, OP_TRUE};
 use crate::chunk::{Chunk, OpCode};
 use crate::compiler::Precedence::{
     PREC_ASSIGNMENT, PREC_COMPARISON, PREC_EQUALITY, PREC_FACTOR, PREC_NONE, PREC_TERM, PREC_UNARY,
 };
 use crate::debug::disassemble_chunk;
+use crate::object::Obj;
 use crate::scanner::TokenType::{TOKEN_EOF, TOKEN_ERROR, TOKEN_RIGHT_PAREN};
 use crate::scanner::{Scanner, Token, TokenType, TokenType::*};
 use crate::value::Value;
@@ -43,8 +41,8 @@ enum Precedence {
 }
 
 struct ParseRule {
-    prefix: Option<fn(&mut Compiler)>,
-    infix: Option<fn(&mut Compiler)>,
+    prefix: Option<fn(&mut Compiler, bool)>,
+    infix: Option<fn(&mut Compiler, bool)>,
     precedence: Precedence,
 }
 
@@ -58,8 +56,9 @@ impl Compiler {
     }
     pub fn compile(&mut self) -> bool {
         self.advance();
-        self.expression();
-        self.consume(TOKEN_EOF, "Expect end of expression.");
+        while !self.match_(TOKEN_EOF) {
+            self.declaration();
+        }
         !self.parser.had_error
     }
 
@@ -107,6 +106,18 @@ impl Compiler {
         self.error_at_current(message);
     }
 
+    fn match_(&mut self, r#type: TokenType) -> bool {
+        if !self.check(r#type) {
+            return false;
+        }
+        self.advance();
+        return true;
+    }
+
+    fn check(&self, r#type: TokenType) -> bool {
+        return self.parser.current.r#type == r#type;
+    }
+
     fn emit_byte<B: Into<u8>>(&mut self, byte: B) {
         self.chunk.write_chunk(byte, self.parser.previous.line);
     }
@@ -128,9 +139,9 @@ impl Compiler {
         }
     }
 
-    fn binary(&mut self) {
+    fn binary(&mut self, can_assign: bool) {
         let operator_type = self.parser.previous.r#type;
-        let rule = self.get_rule(operator_type);
+        let rule = self.get_rule(operator_type, can_assign);
         self.parse_precedence((rule.unwrap().precedence.add(1)));
 
         match operator_type {
@@ -148,7 +159,7 @@ impl Compiler {
         }
     }
 
-    fn literal(&mut self) {
+    fn literal(&mut self, can_assign: bool) {
         match self.parser.previous.r#type {
             TOKEN_FALSE => self.emit_byte(OP_FALSE),
             TOKEN_NIL => self.emit_byte(OP_NIL),
@@ -157,10 +168,10 @@ impl Compiler {
         }
     }
 
-    fn get_rule(&self, operator_type: TokenType) -> Option<ParseRule> {
+    fn get_rule(&self, operator_type: TokenType, can_assign: bool) -> Option<ParseRule> {
         match operator_type {
             TOKEN_LEFT_PAREN => Some(ParseRule::new(
-                Some(|c: &mut Compiler| c.grouping()),
+                Some(|c: &mut Compiler, can_assign: bool| c.grouping(can_assign)),
                 None,
                 PREC_NONE,
             )),
@@ -172,69 +183,69 @@ impl Compiler {
             TOKEN_COMMA => Some(ParseRule::new(None, None, PREC_NONE)),
             TOKEN_DOT => Some(ParseRule::new(None, None, PREC_NONE)),
             TOKEN_MINUS => Some(ParseRule::new(
-                Some(|c: &mut Compiler| c.unary()),
-                Some(|c: &mut Compiler| c.binary()),
+                Some(|c: &mut Compiler, can_assign: bool| c.unary(can_assign)),
+                Some(|c: &mut Compiler, can_assign: bool| c.binary(can_assign)),
                 PREC_NONE,
             )),
             TOKEN_PLUS => Some(ParseRule::new(
                 None,
-                Some(|c: &mut Compiler| c.binary()),
+                Some(|c: &mut Compiler, can_assign: bool| c.binary(can_assign)),
                 PREC_TERM,
             )),
             TOKEN_SEMICOLON => Some(ParseRule::new(None, None, PREC_NONE)),
 
             TOKEN_SLASH => Some(ParseRule::new(
                 None,
-                Some(|c: &mut Compiler| c.binary()),
+                Some(|c: &mut Compiler, can_assign: bool| c.binary(can_assign)),
                 PREC_FACTOR,
             )),
             TOKEN_STAR => Some(ParseRule::new(
                 None,
-                Some(|c: &mut Compiler| c.binary()),
+                Some(|c: &mut Compiler, can_assign: bool| c.binary(can_assign)),
                 PREC_FACTOR,
             )),
             TOKEN_BANG => Some(ParseRule::new(
-                Some(|c: &mut Compiler| c.unary()),
+                Some(|c: &mut Compiler, can_assign: bool| c.unary(can_assign)),
                 None,
                 PREC_NONE,
             )),
             TOKEN_BANG_EQUAL => Some(ParseRule::new(
                 None,
-                Some(|c: &mut Compiler| c.binary()),
+                Some(|c: &mut Compiler, can_assign: bool| c.binary(can_assign)),
                 PREC_EQUALITY,
             )),
             TOKEN_EQUAL => Some(ParseRule::new(None, None, PREC_NONE)),
 
             TOKEN_EQUAL_EQUAL => Some(ParseRule::new(
                 None,
-                Some(|c: &mut Compiler| c.binary()),
+                Some(|c: &mut Compiler, can_assign: bool| c.binary(can_assign)),
                 PREC_EQUALITY,
             )),
             TOKEN_GREATER => Some(ParseRule::new(
                 None,
-                Some(|c: &mut Compiler| c.binary()),
+                Some(|c: &mut Compiler, can_assign: bool| c.binary(can_assign)),
                 PREC_COMPARISON,
             )),
             TOKEN_GREATER_EQUAL => Some(ParseRule::new(
                 None,
-                Some(|c: &mut Compiler| c.binary()),
+                Some(|c: &mut Compiler, can_assign: bool| c.binary(can_assign)),
                 PREC_COMPARISON,
             )),
             TOKEN_LESS => Some(ParseRule::new(
                 None,
-                Some(|c: &mut Compiler| c.binary()),
+                Some(|c: &mut Compiler, can_assign: bool| c.binary(can_assign)),
                 PREC_COMPARISON,
             )),
             TOKEN_LESS_EQUAL => Some(ParseRule::new(
                 None,
-                Some(|c: &mut Compiler| c.binary()),
+                Some(|c: &mut Compiler, can_assign: bool| c.binary(can_assign)),
                 PREC_COMPARISON,
             )),
 
-            TOKEN_IDENTIFIER => Some(ParseRule::new(None, None, PREC_NONE)),
+            TOKEN_IDENTIFIER => Some(ParseRule::new(Some(|c: &mut Compiler, can_assign: bool| c.variable(can_assign)), None, PREC_NONE)),
             TOKEN_STRING => Some(ParseRule::new(None, None, PREC_NONE)),
             TOKEN_NUMBER => Some(ParseRule::new(
-                Some(|c: &mut Compiler| c.number()),
+                Some(|c: &mut Compiler, can_assign: bool| c.number(can_assign)),
                 None,
                 PREC_NONE,
             )),
@@ -243,7 +254,7 @@ impl Compiler {
 
             TOKEN_ELSE => Some(ParseRule::new(None, None, PREC_NONE)),
             TOKEN_FALSE => Some(ParseRule::new(
-                Some(|c: &mut Compiler| c.literal()),
+                Some(|c: &mut Compiler, can_assign: bool| c.literal(can_assign)),
                 None,
                 PREC_NONE,
             )),
@@ -252,7 +263,7 @@ impl Compiler {
             TOKEN_IF => Some(ParseRule::new(None, None, PREC_NONE)),
 
             TOKEN_NIL => Some(ParseRule::new(
-                Some(|c: &mut Compiler| c.literal()),
+                Some(|c: &mut Compiler, can_assign: bool| c.literal(can_assign)),
                 None,
                 PREC_NONE,
             )),
@@ -263,7 +274,7 @@ impl Compiler {
 
             TOKEN_THIS => Some(ParseRule::new(None, None, PREC_NONE)),
             TOKEN_TRUE => Some(ParseRule::new(
-                Some(|c: &mut Compiler| c.literal()),
+                Some(|c: &mut Compiler, can_assign: bool| c.literal(can_assign)),
                 None,
                 PREC_NONE,
             )),
@@ -275,7 +286,7 @@ impl Compiler {
         }
     }
 
-    fn grouping(&mut self) {
+    fn grouping(&mut self, can_assign: bool) {
         self.expression();
         self.consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
     }
@@ -287,7 +298,65 @@ impl Compiler {
     fn expression(&mut self) {
         self.parse_precedence(PREC_ASSIGNMENT);
     }
-    fn number(&mut self) {
+
+    fn var_declaration(&mut self) {
+        // parse var name, store its name to constant pool and return constant pool index
+        let global = self.parse_variable("Expect variable name.");
+        if (self.match_(TOKEN_EQUAL)) {
+            self.expression();
+        } else {
+            self.emit_byte(OP_NIL);
+        }
+        self.consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
+        self.define_variable(global);
+    }
+
+    fn expression_statement(&mut self) {
+        self.expression();
+        self.consume(TOKEN_SEMICOLON, "Expect ';' after expression.");
+        self.emit_byte(OP_POP);
+    }
+    fn print_statement(&mut self) {
+        self.expression();
+        self.consume(TOKEN_SEMICOLON, "Expect ';' after value.");
+        self.emit_byte(OP_PRINT);
+    }
+
+    fn synchronize(&mut self) {
+        self.parser.panic_mode = false;
+        while self.parser.current.r#type != TOKEN_EOF {
+            if (self.parser.previous.r#type == TOKEN_SEMICOLON) {
+                return;
+            }
+            match self.parser.current.r#type {
+                TOKEN_CLASS | TOKEN_FUN | TOKEN_VAR | TOKEN_FOR | TOKEN_IF | TOKEN_WHILE
+                | TOKEN_PRINT | TOKEN_RETURN => return,
+                _ => {}
+            }
+            self.advance();
+        }
+    }
+
+    fn declaration(&mut self) {
+        if self.match_(TOKEN_VAR) {
+            self.var_declaration();
+        } else {
+            self.statement();
+        }
+        if self.parser.panic_mode {
+            self.synchronize();
+        }
+    }
+
+    fn statement(&mut self) {
+        if self.match_(TOKEN_PRINT) {
+            self.print_statement();
+        } else {
+            self.expression_statement();
+        }
+    }
+
+    fn number(&mut self, can_assign: bool) {
         let value = self
             .parser
             .previous
@@ -297,18 +366,33 @@ impl Compiler {
         self.emit_constant(Value::number_val(value));
     }
 
-    fn string(&mut self) {
+    fn string(&mut self, can_assign: bool) {
         self.emit_constant(Value::string_val(self.parser.previous.lexume.clone()));
         // TODO trim the leading and trailing quotation marks
     }
 
-    fn unary(&mut self) {
-        let operatorType = self.parser.previous.r#type;
+    fn variable(&mut self, can_assign: bool) {
+        let previous = &self.parser.previous.clone();
+        self.named_variable(&previous, can_assign);
+    }
+
+    fn named_variable(&mut self, name: &Token, can_assign: bool) {
+        let arg = self.identifier_constant(name);
+        if can_assign && self.match_(TOKEN_EQUAL) {
+            self.expression();
+            self.emit_bytes(OP_SET_GLOBAL, arg);
+        } else {
+            self.emit_bytes(OP_GET_GLOBAL, arg);
+        }
+    }
+
+    fn unary(&mut self, can_assign: bool) {
+        let operator_type = self.parser.previous.r#type;
         // Compile the operand.
         self.parse_precedence(PREC_UNARY);
         self.expression();
         // Emit the operator instruction.
-        match operatorType {
+        match operator_type {
             TOKEN_BANG => self.emit_byte(OP_NOT),
             TOKEN_MINUS => self.emit_byte(OP_NEGATE),
             _ => return, // Unreachable.
@@ -317,15 +401,17 @@ impl Compiler {
 
     fn parse_precedence(&mut self, precedence: Precedence) {
         self.advance();
-        let prefix_rule = self.get_rule(self.parser.previous.r#type).map(|v| v.prefix);
+        let can_assign = precedence <= PREC_ASSIGNMENT;
+        let prefix_rule = self.get_rule(self.parser.previous.r#type, can_assign).map(|v| v.prefix);
         let Some(prefix_rule) = prefix_rule else {
             self.error("Expect expression.");
             return;
         };
-        prefix_rule.map(|f| f(self));
+
+        prefix_rule.map(|f| f(self, can_assign));
         while precedence
             <= self
-                .get_rule(self.parser.current.r#type)
+                .get_rule(self.parser.current.r#type, can_assign)
                 .map(|v| v.precedence)
                 .expect(&format!(
                     "rule not found for token type: {:?}",
@@ -334,20 +420,41 @@ impl Compiler {
         {
             self.advance();
             let infix_rule = self
-                .get_rule(self.parser.previous.r#type)
+                .get_rule(self.parser.previous.r#type, can_assign)
                 .map(|v| v.infix)
                 .expect(&format!(
                     "rule not found for token type: {:?}",
                     self.parser.previous.r#type
                 ));
-            infix_rule.map(|f| f(self));
+            infix_rule.map(|f| f(self, can_assign));
         }
+
+        if can_assign && self.match_(TOKEN_EQUAL) {
+            self.error("Invalid assignment target.");
+        }
+
+    }
+
+    fn parse_variable(&mut self, error_message: &str) -> u8 {
+        self.consume(TOKEN_IDENTIFIER, error_message);
+        return self.identifier_constant(&self.parser.previous.clone());
+    }
+
+    fn define_variable(&mut self,  global: u8) {
+        self.emit_bytes(OP_DEFINE_GLOBAL, global);
+    }
+
+    /// add token to constant pool and return its constant pool index
+    fn identifier_constant(&mut self, name: &Token) -> u8 {
+        return self.make_constant(Value::obj(Obj::string(name.lexume.clone())));
     }
 
     fn emit_constant(&mut self, value: Value) {
         let constant = self.make_constant(value);
         self.emit_bytes(OP_CONSTANT, constant);
     }
+
+    /// add value to constant pool and return its pool index. ensure pool index < u8::MAX
     fn make_constant(&mut self, value: Value) -> u8 {
         let constant = self.chunk.add_constant(value);
         if (constant > u8::MAX as usize) {
@@ -384,8 +491,8 @@ impl From<u8> for Precedence {
 
 impl ParseRule {
     fn new(
-        prefix: Option<fn(&mut Compiler)>,
-        infix: Option<fn(&mut Compiler)>,
+        prefix: Option<fn(&mut Compiler, bool)>,
+        infix: Option<fn(&mut Compiler, bool)>,
         precedence: Precedence,
     ) -> Self {
         Self {
