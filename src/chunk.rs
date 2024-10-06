@@ -11,6 +11,8 @@ pub enum OpCode {
     OP_TRUE = 2,
     OP_FALSE = 3,
     OP_POP = 4,
+    OP_GET_LOCAL = 222,
+    OP_SET_LOCAL = 221,
     OP_GET_GLOBAL = 66,
     OP_DEFINE_GLOBAL = 55, // TODO
     OP_SET_GLOBAL = 111,
@@ -70,6 +72,8 @@ impl Into<u8> for OpCode {
             OpCode::OP_TRUE => 2,
             OpCode::OP_FALSE => 3,
             OpCode::OP_POP => 4,
+            OpCode::OP_GET_LOCAL=> 222,
+            OpCode::OP_SET_LOCAL=> 223,
             OpCode::OP_GET_GLOBAL => 33,
             OpCode::OP_SET_GLOBAL => 34,
             OpCode::OP_DEFINE_GLOBAL => 55,

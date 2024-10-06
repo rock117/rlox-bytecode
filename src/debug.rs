@@ -28,6 +28,9 @@ pub fn disassemble_instruction(chunk: &Chunk, offset: usize) -> usize {
             OpCode::OP_TRUE => simple_instruction("OP_TRUE", offset),
             OpCode::OP_FALSE => simple_instruction("OP_FALSE", offset),
             OpCode::OP_POP => simple_instruction("OP_POP", offset),
+            OpCode::OP_GET_LOCAL => byte_instruction("OP_GET_LOCAL", chunk, offset),
+            OpCode::OP_SET_LOCAL => byte_instruction("OP_SET_LOCAL", chunk, offset),
+
             OpCode::OP_GET_GLOBAL => constant_instruction("OP_GET_GLOBAL", chunk, offset),
             OpCode::OP_DEFINE_GLOBAL => constant_instruction("OP_DEFINE_GLOBAL", chunk, offset),
             OpCode::OP_SET_GLOBAL => constant_instruction("OP_SET_GLOBAL", chunk, offset),
@@ -54,6 +57,12 @@ pub fn disassemble_instruction(chunk: &Chunk, offset: usize) -> usize {
 fn simple_instruction(name: &str, offset: usize) -> usize {
     print!("{}\n", name);
     offset + 1
+}
+
+fn byte_instruction(name: &str, chunk: &Chunk, offset: usize ) -> usize {
+    let slot = chunk.codes[offset + 1];
+    print!("-{:<16} {:4}\n", name, slot); // print!("%-16s %4d\n", name, slot); TODO
+    return offset + 2;
 }
 
 fn constant_instruction(name: &str, chunk: &Chunk, offset: usize) -> usize {

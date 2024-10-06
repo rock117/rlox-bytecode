@@ -104,6 +104,14 @@ impl VM {
                     OpCode::OP_POP => {
                         self.pop();
                     }
+                    OpCode::OP_SET_LOCAL => {
+                        let slot = self.read_byte() as usize;
+                        self.stack[slot] = self.peek(0);
+                    }
+                    OpCode::OP_GET_LOCAL => {
+                        let slot = self.read_byte() as usize;
+                        self.push(self.stack[slot].clone());
+                    }
                     OpCode::OP_GET_GLOBAL => {
                         let name = self.read_string();
                         let Some(value) = self.globals.get(&name) else {
@@ -173,6 +181,7 @@ impl VM {
         }
     }
 
+    /// read byte from constant pool by current ip
     fn read_byte(&mut self) -> u8 {
         let ip = self.ip();
         self.ip_index += 1;
