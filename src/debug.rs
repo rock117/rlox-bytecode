@@ -59,7 +59,7 @@ fn simple_instruction(name: &str, offset: usize) -> usize {
     offset + 1
 }
 
-fn byte_instruction(name: &str, chunk: &Chunk, offset: usize ) -> usize {
+fn byte_instruction(name: &str, chunk: &Chunk, offset: usize) -> usize {
     let slot = chunk.codes[offset + 1];
     print!("-{:<16} {:4}\n", name, slot); // print!("%-16s %4d\n", name, slot); TODO
     return offset + 2;

@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use crate::chunk::OpCode::OP_NIL;
 use crate::chunk::{Chunk, OpCode};
 use crate::compiler::{Compiler, Parser};
@@ -7,6 +6,7 @@ use crate::debug::disassemble_instruction;
 use crate::scanner::Scanner;
 use crate::value::{print_value, values_equal, Value};
 use crate::vm::InterpretResult::{INTERPRET_OK, INTERPRET_RUNTIME_ERROR};
+use std::collections::HashMap;
 
 const STACK_MAX: usize = 256;
 
