@@ -1,12 +1,6 @@
-use crate::chunk::OpCode::{
-    OP_ADD, OP_CONSTANT, OP_DEFINE_GLOBAL, OP_DIVIDE, OP_EQUAL, OP_FALSE, OP_GET_GLOBAL,
-    OP_GET_LOCAL, OP_GREATER, OP_LESS, OP_MULTIPLY, OP_NEGATE, OP_NIL, OP_NOT, OP_POP, OP_PRINT,
-    OP_RETURN, OP_SET_GLOBAL, OP_SET_LOCAL, OP_SUBTRACT, OP_TRUE,
-};
+use crate::chunk::OpCode::{OP_ADD, OP_CONSTANT, OP_DEFINE_GLOBAL, OP_DIVIDE, OP_EQUAL, OP_FALSE, OP_GET_GLOBAL, OP_GET_LOCAL, OP_GREATER, OP_JUMP, OP_JUMP_IF_FALSE, OP_LESS, OP_LOOP, OP_MULTIPLY, OP_NEGATE, OP_NIL, OP_NOT, OP_POP, OP_PRINT, OP_RETURN, OP_SET_GLOBAL, OP_SET_LOCAL, OP_SUBTRACT, OP_TRUE};
 use crate::chunk::{Chunk, OpCode};
-use crate::compiler::Precedence::{
-    PREC_ASSIGNMENT, PREC_COMPARISON, PREC_EQUALITY, PREC_FACTOR, PREC_NONE, PREC_TERM, PREC_UNARY,
-};
+use crate::compiler::Precedence::{PREC_AND, PREC_ASSIGNMENT, PREC_COMPARISON, PREC_EQUALITY, PREC_FACTOR, PREC_NONE, PREC_OR, PREC_TERM, PREC_UNARY};
 use crate::debug::disassemble_chunk;
 use crate::object::Obj;
 use crate::scanner::TokenType::{TOKEN_EOF, TOKEN_ERROR, TOKEN_RIGHT_PAREN};
@@ -140,15 +134,28 @@ impl Compiler {
     }
 
     fn emit_bytes<B1, B2>(&mut self, byte1: B1, byte2: B2)
-    where
-        B1: Into<u8>,
-        B2: Into<u8>,
+        where
+            B1: Into<u8>,
+            B2: Into<u8>,
     {
         self.emit_byte(byte1.into());
         self.emit_byte(byte2.into());
     }
 
-    fn emit_jump(&mut self, instruction: u8) -> usize {
+    fn emit_loop(&mut self, loop_start: usize ) {
+        self.emit_byte(OP_LOOP);
+
+        let offset = self.chunk.count() - loop_start + 2;
+        if offset > u16::MAX as usize {
+            self.error("Loop body too large.");
+        }
+
+        self.emit_byte(((offset >> 8) & 0xff) as u8);
+        self.emit_byte((offset & 0xff) as u8);
+    }
+
+
+    fn emit_jump<B: Into<u8>>(&mut self, instruction: B) -> usize {
         self.emit_byte(instruction);
         self.emit_byte(0xff);
         self.emit_byte(0xff);
@@ -291,7 +298,7 @@ impl Compiler {
                 None,
                 PREC_NONE,
             )),
-            TOKEN_AND => Some(ParseRule::new(None, None, PREC_NONE)),
+            TOKEN_AND => Some(ParseRule::new(None, Some(|c: &mut Compiler, can_assign: bool| c.and(can_assign)), PREC_AND)),
             TOKEN_CLASS => Some(ParseRule::new(None, None, PREC_NONE)),
 
             TOKEN_ELSE => Some(ParseRule::new(None, None, PREC_NONE)),
@@ -309,7 +316,7 @@ impl Compiler {
                 None,
                 PREC_NONE,
             )),
-            TOKEN_OR => Some(ParseRule::new(None, None, PREC_NONE)),
+            TOKEN_OR => Some(ParseRule::new(None, Some(|c: &mut Compiler, can_assign: bool| c.or(can_assign)), PREC_OR)),
             TOKEN_PRINT => Some(ParseRule::new(None, None, PREC_NONE)),
             TOKEN_RETURN => Some(ParseRule::new(None, None, PREC_NONE)),
             TOKEN_SUPER => Some(ParseRule::new(None, None, PREC_NONE)),
@@ -365,21 +372,86 @@ impl Compiler {
         self.emit_byte(OP_POP);
     }
 
+    fn for_statement(&mut self) {
+        self.begin_scope();
+        self.consume(TOKEN_LEFT_PAREN, "Expect '(' after 'for'.");
+        self.consume(TOKEN_SEMICOLON, "Expect ';'.");
+
+        if self.match_(TOKEN_SEMICOLON) {
+            // No initializer.
+        } else if self.match_(TOKEN_VAR) {
+            self.var_declaration();
+        } else {
+            self.expression_statement();
+        }
+
+        let mut loop_start = self.chunk.count();
+        let mut emit_jump = None;
+        if (!self.match_(TOKEN_SEMICOLON)) {
+            self.expression();
+            self.consume(TOKEN_SEMICOLON, "Expect ';' after loop condition.");
+            // Jump out of the loop if the condition is false.
+            emit_jump.replace(self.emit_jump(OP_JUMP_IF_FALSE));
+            self.emit_byte(OP_POP); // Condition.
+        }
+
+        self.consume(TOKEN_RIGHT_PAREN, "Expect ')' after for clauses.");
+
+        if (!self.match_(TOKEN_RIGHT_PAREN)) {
+            let bodyJump = self.emit_jump(OP_JUMP);
+            let increment_start = self.chunk.count();
+            self.expression();
+            self.emitByte(OP_POP);
+            self.consume(TOKEN_RIGHT_PAREN, "Expect ')' after for clauses.");
+
+            self.emitLoop(loop_start);
+            loop_start = increment_start;
+            self.patchJump(bodyJump);
+        }
+        self.statement();
+        self.emit_loop(loop_start);
+        if let Some (emit_jump) = emit_jump{
+            self.patch_jump(emit_jump);
+            self.emit_byte(OP_POP); // Condition.
+        }
+        self.end_scope();
+    }
+
     fn if_statement(&mut self) {
         self.consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
         self.expression();
         self.consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
 
         let then_jump = self.emit_jump(OP_JUMP_IF_FALSE);
+        self.emit_byte(OP_POP);
         self.statement();
-
+        let else_jump = self.emit_jump(OP_JUMP);
         self.patch_jump(then_jump);
+        self.emit_byte(OP_POP);
+        if self.match_(TOKEN_ELSE) {
+            self.statement();
+        }
+        self.patch_jump(else_jump);
     }
 
     fn print_statement(&mut self) {
         self.expression();
         self.consume(TOKEN_SEMICOLON, "Expect ';' after value.");
         self.emit_byte(OP_PRINT);
+    }
+
+    fn while_statement(&mut self) {
+        let loop_start = self.chunk.count();
+        self.consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
+        self.expression();
+        self.consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
+
+        let exit_jump = self.emit_jump(OP_JUMP_IF_FALSE);
+        self.emit_byte(OP_POP);
+        self.statement();
+        self.emit_loop(loop_start);
+        self.patch_jump(exit_jump);
+        self.emit_byte(OP_POP);
     }
 
     fn synchronize(&mut self) {
@@ -411,9 +483,13 @@ impl Compiler {
     fn statement(&mut self) {
         if self.match_(TOKEN_PRINT) {
             self.print_statement();
-        } else if self.match_(TOKEN_IF) {
+        } else if self.match_(TOKEN_FOR) {
+            self.for_statement();
+        }  else if self.match_(TOKEN_IF) {
             self.if_statement();
-        } else if self.match_(TOKEN_LEFT_BRACE) {
+        } else if self.match_(TOKEN_WHILE) {
+            self.while_statement();
+        }  else if self.match_(TOKEN_LEFT_BRACE) {
             self.begin_scope();
             self.block();
             self.end_scope();
@@ -430,6 +506,17 @@ impl Compiler {
             .parse::<f64>()
             .expect(&format!("{} not a number", self.parser.previous.lexume));
         self.emit_constant(Value::number_val(value));
+    }
+
+    fn or(&mut self, can_assign: bool ) {
+        let else_jump = self.emit_jump(OP_JUMP_IF_FALSE);
+        let end_jump = self.emit_jump(OP_JUMP);
+
+        self.patch_jump(else_jump);
+        self.emit_byte(OP_POP);
+
+        self.parse_precedence(PREC_OR);
+        self.patch_jump(end_jump);
     }
 
     fn string(&mut self, can_assign: bool) {
@@ -484,12 +571,12 @@ impl Compiler {
         prefix_rule.map(|f| f(self, can_assign));
         while precedence
             <= self
-                .get_rule(self.parser.current.r#type, can_assign)
-                .map(|v| v.precedence)
-                .expect(&format!(
-                    "rule not found for token type: {:?}",
-                    self.parser.current.r#type
-                ))
+            .get_rule(self.parser.current.r#type, can_assign)
+            .map(|v| v.precedence)
+            .expect(&format!(
+                "rule not found for token type: {:?}",
+                self.parser.current.r#type
+            ))
         {
             self.advance();
             let infix_rule = self
@@ -526,6 +613,13 @@ impl Compiler {
             return;
         }
         self.emit_bytes(OP_DEFINE_GLOBAL, global);
+    }
+
+    fn and(&mut self, can_assign: bool) {
+        let endJump = self.emit_jump(OP_JUMP_IF_FALSE);
+        self.emit_byte(OP_POP);
+        self.parse_precedence(PREC_AND);
+        self.patch_jump(endJump);
     }
 
     /// add token to constant pool and return its constant pool index

@@ -3,30 +3,34 @@ use crate::value::{Value, ValueArray};
 use int_enum::IntEnum;
 
 use int_to_c_enum::TryFromInt;
+
 #[repr(u8)]
-#[derive(TryFromInt, Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum OpCode {
     OP_CONSTANT = 0,
-    OP_NIL = 1,
-    OP_TRUE = 2,
-    OP_FALSE = 3,
-    OP_POP = 4,
-    OP_GET_LOCAL = 222,
-    OP_SET_LOCAL = 221,
-    OP_GET_GLOBAL = 66,
-    OP_DEFINE_GLOBAL = 55, // TODO
-    OP_SET_GLOBAL = 111,
-    OP_EQUAL = 5,
-    OP_GREATER = 6,
-    OP_LESS = 7,
-    OP_ADD = 8,
-    OP_SUBTRACT = 9,
-    OP_MULTIPLY = 10,
-    OP_DIVIDE = 11,
-    OP_NOT = 12,
-    OP_NEGATE = 13,
-    OP_PRINT = 14,
-    OP_RETURN = 15,
+    OP_NIL,
+    OP_TRUE,
+    OP_FALSE,
+    OP_POP,
+    OP_GET_LOCAL,
+    OP_SET_LOCAL,
+    OP_GET_GLOBAL,
+    OP_DEFINE_GLOBAL,
+    OP_SET_GLOBAL,
+    OP_EQUAL,
+    OP_GREATER,
+    OP_LESS,
+    OP_ADD,
+    OP_SUBTRACT,
+    OP_MULTIPLY,
+    OP_DIVIDE,
+    OP_NOT,
+    OP_NEGATE,
+    OP_PRINT,
+    OP_JUMP,
+    OP_JUMP_IF_FALSE,
+    OP_LOOP,
+    OP_RETURN,
 }
 
 /// vm instruction, store all instructions
@@ -66,28 +70,6 @@ impl Chunk {
 
 impl Into<u8> for OpCode {
     fn into(self) -> u8 {
-        match self {
-            OP_CONSTANT => 0,
-            OpCode::OP_NIL => 1,
-            OpCode::OP_TRUE => 2,
-            OpCode::OP_FALSE => 3,
-            OpCode::OP_POP => 4,
-            OpCode::OP_GET_LOCAL => 222,
-            OpCode::OP_SET_LOCAL => 223,
-            OpCode::OP_GET_GLOBAL => 33,
-            OpCode::OP_SET_GLOBAL => 34,
-            OpCode::OP_DEFINE_GLOBAL => 55,
-            OpCode::OP_EQUAL => 4,
-            OpCode::OP_GREATER => 5,
-            OpCode::OP_LESS => 6,
-            OpCode::OP_ADD => 7,
-            OpCode::OP_SUBTRACT => 8,
-            OpCode::OP_MULTIPLY => 9,
-            OpCode::OP_DIVIDE => 10,
-            OpCode::OP_NOT => 11,
-            OP_NEGATE => 12,
-            OpCode::OP_PRINT => 13,
-            OP_RETURN => 14,
-        }
+        self as u8
     }
 }

@@ -69,6 +69,10 @@ impl VM {
     fn ip(&self) -> u8 {
         self.chunk.codes[self.ip_index]
     }
+    fn ip_by_offset(&self, offset: isize) -> u8 {
+        let index: usize = (self.ip_index as isize + offset) as usize;
+        self.chunk.codes[index]
+    }
     pub fn interpret(&mut self, source: &str) -> InterpretResult {
         let chunk = Chunk::new();
         let scanner = Scanner::new(source);
@@ -171,6 +175,20 @@ impl VM {
                         print_value(self.pop());
                         print!("\n");
                     }
+                    OpCode::OP_JUMP => {
+                        let offset = self.read_short() as usize;
+                        self.ip_index += offset;
+                    }
+                    OpCode::OP_JUMP_IF_FALSE => {
+                        let offset = self.read_short();
+                        if self.is_falsey(self.peek(0)) {
+                            self.ip_index += offset as usize;
+                        }
+                    }
+                    OpCode::OP_LOOP => {
+                        let offset = self.read_short() as usize;
+                        self.ip_index -= offset;
+                    }
                     OpCode::OP_RETURN => {
                         // Exit interpreter.
                         return INTERPRET_OK;
@@ -186,6 +204,11 @@ impl VM {
         let ip = self.ip();
         self.ip_index += 1;
         ip
+    }
+
+    fn read_short(&mut self) -> u16 {
+        self.ip_index += 2;
+        ((self.ip_by_offset(-2) << 8) | self.ip_by_offset(-1)) as u16
     }
 
     fn read_constant(&mut self) -> Value {

@@ -45,6 +45,10 @@ pub fn disassemble_instruction(chunk: &Chunk, offset: usize) -> usize {
             OpCode::OP_NOT => simple_instruction("OP_NOT", offset),
             OpCode::OP_NEGATE => simple_instruction("OP_NEGATE", offset),
             OpCode::OP_PRINT => simple_instruction("OP_PRINT", offset),
+
+            OpCode::OP_JUMP => jump_instruction("OP_JUMP", 1, chunk, offset ),
+            OpCode::OP_JUMP_IF_FALSE => jump_instruction("OP_JUMP_IF_FALSE", 1, chunk, offset ),
+            OpCode::OP_LOOP => jump_instruction("OP_LOOP", -1, chunk, offset),
             OpCode::OP_RETURN => simple_instruction("OP_RETURN", offset),
         },
         Err(_) => {
@@ -71,4 +75,11 @@ fn constant_instruction(name: &str, chunk: &Chunk, offset: usize) -> usize {
     print_value(chunk.constants.values[constant as usize].clone());
     print!("'\n");
     offset + 2
+}
+
+fn jump_instruction(name: &str, sign: isize, chunk: &Chunk, offset: usize) -> usize  {
+    let mut jump =  (chunk.codes[offset + 1] << 8) as u16;
+    jump |= chunk.codes[offset + 2] as u16;
+    print!("{:<16} {:4} -> {}\n", name, offset, ((offset + 3) as isize) + sign * jump as isize);
+    return offset + 3;
 }
